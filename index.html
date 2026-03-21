@@ -903,11 +903,16 @@
     }
 
     // Prompt modal
+    let promptModalInitialName = '';
+    let promptModalInitialText = '';
+
     function openPromptModal() {
       editingPromptId = null;
       document.getElementById('modal-title').textContent = 'New Prompt';
       document.getElementById('prompt-name-input').value = '';
       document.getElementById('prompt-text-input').value = '';
+      promptModalInitialName = '';
+      promptModalInitialText = '';
       document.getElementById('prompt-modal').classList.add('active');
       setTimeout(() => document.getElementById('prompt-name-input').focus(), 100);
     }
@@ -919,11 +924,22 @@
       document.getElementById('modal-title').textContent = 'Edit Prompt';
       document.getElementById('prompt-name-input').value = p.name;
       document.getElementById('prompt-text-input').value = p.text;
+      promptModalInitialName = p.name;
+      promptModalInitialText = p.text;
       document.getElementById('prompt-modal').classList.add('active');
       setTimeout(() => document.getElementById('prompt-name-input').focus(), 100);
     }
 
-    function closePromptModal() {
+    function isPromptDirty() {
+      const name = document.getElementById('prompt-name-input').value;
+      const text = document.getElementById('prompt-text-input').value;
+      return name !== promptModalInitialName || text !== promptModalInitialText;
+    }
+
+    function closePromptModal(force) {
+      if (!force && document.getElementById('prompt-modal').classList.contains('active') && isPromptDirty()) {
+        if (!confirm('You have unsaved changes. Discard them?')) return;
+      }
       document.getElementById('prompt-modal').classList.remove('active');
       editingPromptId = null;
     }
@@ -940,7 +956,7 @@
         state.prompts.push({ id: uid(), name, text });
       }
 
-      persist(); renderPrompts(); closePromptModal();
+      persist(); renderPrompts(); closePromptModal(true);
     }
 
     // Prompt templates
