@@ -944,34 +944,33 @@
     async function fetchMostActiveBranch(ghRepo) {
       if (!ghToken) return null;
       try {
-        // Get branches sorted by most recent commit via the repos/branches endpoint
-        const res = await fetch(`https://api.github.com/repos/${ghRepo}/branches?per_page=10`, {
+        // Use recent events to find the most recently pushed-to branch
+        const evRes = await fetch(`https://api.github.com/repos/${ghRepo}/events?per_page=30`, {
           headers: { Authorization: `token ${ghToken}`, Accept: 'application/vnd.github.v3+json' }
         });
-        if (!res.ok) return null;
-        const branches = await res.json();
-        if (!branches.length) return null;
-
-        // Fetch latest commit date for each branch to find most active
-        let mostActive = null;
-        let latestDate = 0;
-        await Promise.all(branches.map(async (b) => {
-          try {
-            const cRes = await fetch(`https://api.github.com/repos/${ghRepo}/commits?sha=${encodeURIComponent(b.name)}&per_page=1`, {
-              headers: { Authorization: `token ${ghToken}`, Accept: 'application/vnd.github.v3+json' }
-            });
-            if (!cRes.ok) return;
-            const commits = await cRes.json();
-            if (commits.length) {
-              const date = new Date(commits[0].commit.committer.date).getTime();
-              if (date > latestDate) {
-                latestDate = date;
-                mostActive = b.name;
-              }
+        if (evRes.ok) {
+          const events = await evRes.json();
+          // Find most recent PushEvent — its ref is the branch
+          for (const ev of events) {
+            if (ev.type === 'PushEvent' && ev.payload && ev.payload.ref) {
+              const branch = ev.payload.ref.replace('refs/heads/', '');
+              return branch;
             }
-          } catch {}
-        }));
-        return mostActive;
+          }
+        }
+
+        // Fallback: check workflow runs for the most recent branch
+        const wfRes = await fetch(`https://api.github.com/repos/${ghRepo}/actions/runs?per_page=5`, {
+          headers: { Authorization: `token ${ghToken}`, Accept: 'application/vnd.github.v3+json' }
+        });
+        if (wfRes.ok) {
+          const wfData = await wfRes.json();
+          if (wfData.workflow_runs && wfData.workflow_runs.length) {
+            return wfData.workflow_runs[0].head_branch;
+          }
+        }
+
+        return null;
       } catch {
         return null;
       }
@@ -1005,13 +1004,13 @@
       // Copy to clipboard
       await navigator.clipboard.writeText(prompt);
 
-      // Restore button and show feedback
+      // Restore button and show feedback with branch name
       if (btn) {
         btn.classList.remove('loading');
-        btn.textContent = 'Copied!';
+        btn.textContent = `✓ ${branchName}`;
         btn.style.color = '#34d399';
         btn.style.borderColor = '#34d39940';
-        setTimeout(() => { btn.textContent = 'Setup'; btn.style.color = ''; btn.style.borderColor = ''; }, 1500);
+        setTimeout(() => { btn.textContent = 'Setup'; btn.style.color = ''; btn.style.borderColor = ''; }, 2500);
       }
 
       // Ensure the template prompt is in the prompts panel
