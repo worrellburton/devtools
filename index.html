@@ -266,6 +266,7 @@
     .status-dot.failure { background: #ef4444; box-shadow: 0 0 6px #ef444460; }
     .status-dot.pending { background: #f59e0b; box-shadow: 0 0 6px #f59e0b60; }
     .status-dot.neutral { background: #52525b; }
+    .status-dot.error { background: #ef4444; box-shadow: 0 0 6px #ef444460; cursor: help; }
     .status-dot.none { background: var(--border); }
 
     @keyframes pulse {
@@ -781,6 +782,7 @@
             <div class="item-url">${esc(r.domain)}</div>
           </div>
           <div class="status-dot ${dotClass}" title="${esc(dotTitle)}"></div>
+          ${dotClass === 'error' ? '<span class="status-label" style="color:#ef4444">⚠ hover for fix</span>' : ''}
           <div class="item-actions">
             <button class="setup-btn" title="Generate setup prompt" onclick="event.preventDefault();event.stopPropagation();setupRepo('${r.id}')">Setup</button>
             <button class="item-btn" title="${linked ? 'Unlink' : 'Link to site'}" onclick="startLink('repo','${r.id}',event)">${linkLabel}</button>
@@ -1042,8 +1044,16 @@
           actionStatuses[repo.id] = { status: 'neutral', label: 'No actions configured' };
           return;
         }
+        if (res.status === 403) {
+          actionStatuses[repo.id] = { status: 'error', label: 'Access denied (403) — Your token lacks permission for this repo. Go to GitHub → Settings → Developer settings → Personal access tokens and add repo scope, or generate a new token with access to this org.' };
+          return;
+        }
+        if (res.status === 401) {
+          actionStatuses[repo.id] = { status: 'error', label: 'Auth failed (401) — Token is invalid or expired. Go to GitHub → Settings → Developer settings → Personal access tokens to generate a new one.' };
+          return;
+        }
         if (!res.ok) {
-          actionStatuses[repo.id] = { status: 'neutral', label: `API error ${res.status}` };
+          actionStatuses[repo.id] = { status: 'error', label: `API error (${res.status}) — Check your token permissions at GitHub → Settings → Developer settings → Personal access tokens.` };
           return;
         }
         const data = await res.json();
@@ -1064,7 +1074,7 @@
           actionStatuses[repo.id] = { status: 'neutral', label: `${run.name}: ${conclusion || status}` };
         }
       } catch (err) {
-        actionStatuses[repo.id] = { status: 'neutral', label: 'Network error' };
+        actionStatuses[repo.id] = { status: 'error', label: 'Network error — Could not reach GitHub API. Check your internet connection and try again.' };
       }
     }
 
