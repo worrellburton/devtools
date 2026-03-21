@@ -75,6 +75,38 @@
       letter-spacing: 0.3px;
     }
 
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gh-status {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .gh-status.connected { color: #34d399; }
+
+    .topbar-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .topbar-btn:hover {
+      border-color: #7c3aed40;
+      color: var(--text);
+    }
+
     /* Layout */
     .layout {
       display: grid;
@@ -162,6 +194,32 @@
       background: var(--green-soft);
       color: #34d399;
       border: 1px solid #05966930;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.success { background: #34d399; box-shadow: 0 0 6px #34d39960; }
+    .status-dot.failure { background: #ef4444; box-shadow: 0 0 6px #ef444460; }
+    .status-dot.pending { background: #f59e0b; box-shadow: 0 0 6px #f59e0b60; }
+    .status-dot.neutral { background: #52525b; }
+    .status-dot.none { background: #2a2a2e; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .status-dot.pending { animation: pulse 2s ease-in-out infinite; }
+
+    .status-label {
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      white-space: nowrap;
     }
 
     .item-info { flex: 1; min-width: 0; }
@@ -462,6 +520,10 @@
     <div class="logo"><span>&gt;</span> devtools</div>
     <div class="sep"></div>
     <div class="tagline">repos &middot; sites &middot; prompts</div>
+    <div class="topbar-right">
+      <span class="gh-status" id="gh-status"></span>
+      <button class="topbar-btn" id="gh-btn" onclick="openTokenModal()">GitHub</button>
+    </div>
   </div>
 
   <div class="layout">
@@ -522,6 +584,29 @@
     </div>
   </div>
 
+  <!-- Token Modal -->
+  <div class="modal-overlay" id="token-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">GitHub Connection</span>
+        <button class="modal-close" onclick="closeTokenModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label">Personal Access Token</label>
+        <input class="modal-input" id="token-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="font-family:'JetBrains Mono',monospace;font-size:11px" />
+        <p style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-top:-6px">
+          Create a token at GitHub &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens.<br>
+          Needs <code style="background:var(--bg);padding:1px 4px;border-radius:3px">repo</code> scope to read workflow runs. Stored locally only.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="disconnectGitHub()" id="gh-disconnect-btn" style="display:none;margin-right:auto">Disconnect</button>
+        <button class="btn" onclick="closeTokenModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveToken()">Connect</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // State
     const state = {
@@ -531,6 +616,10 @@
     };
 
     let editingPromptId = null;
+
+    // GitHub token
+    let ghToken = localStorage.getItem('dt_gh_token') || '';
+    const actionStatuses = {}; // keyed by repo id
 
     function persist() {
       localStorage.setItem('dt_repos', JSON.stringify(state.repos));
@@ -574,18 +663,23 @@
         return;
       }
 
-      el.innerHTML = state.repos.map(r => `
+      el.innerHTML = state.repos.map(r => {
+        const st = actionStatuses[r.id];
+        const dotClass = st ? st.status : 'none';
+        const dotTitle = st ? st.label : 'No status';
+        return `
         <a href="${esc(r.url)}" target="_blank" rel="noopener" class="item" style="text-decoration:none;color:inherit">
           <div class="item-icon repo">${initials(r.name)}</div>
           <div class="item-info">
             <div class="item-name">${esc(r.name)}</div>
             <div class="item-url">${esc(r.domain)}</div>
           </div>
+          <div class="status-dot ${dotClass}" title="${esc(dotTitle)}"></div>
           <div class="item-actions">
             <button class="item-btn" title="Remove" onclick="event.preventDefault();removeRepo('${r.id}')">✕</button>
           </div>
-        </a>
-      `).join('');
+        </a>`;
+      }).join('');
     }
 
     // Render sites
@@ -647,8 +741,10 @@
       url = url.trim();
       if (!url) return;
       if (!url.startsWith('http')) url = 'https://' + url;
-      state.repos.push({ id: uid(), url, name: extractName(url), domain: extractDomain(url) });
+      const repo = { id: uid(), url, name: extractName(url), domain: extractDomain(url) };
+      state.repos.push(repo);
       persist(); renderRepos();
+      if (ghToken) fetchActionStatus(repo).then(() => renderRepos());
     }
 
     function addSite(url) {
@@ -716,6 +812,108 @@
       persist(); renderPrompts(); closePromptModal();
     }
 
+    // GitHub API
+    function extractGhRepo(url) {
+      try {
+        const u = new URL(url);
+        if (!u.hostname.includes('github.com')) return null;
+        const parts = u.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+        if (parts.length >= 2) return parts[0] + '/' + parts[1];
+      } catch {}
+      return null;
+    }
+
+    async function fetchActionStatus(repo) {
+      const ghRepo = extractGhRepo(repo.url);
+      if (!ghRepo || !ghToken) {
+        actionStatuses[repo.id] = { status: 'none', label: 'Not a GitHub repo' };
+        return;
+      }
+      try {
+        const res = await fetch(`https://api.github.com/repos/${ghRepo}/actions/runs?per_page=1`, {
+          headers: { Authorization: `token ${ghToken}`, Accept: 'application/vnd.github.v3+json' }
+        });
+        if (res.status === 404) {
+          actionStatuses[repo.id] = { status: 'neutral', label: 'No actions configured' };
+          return;
+        }
+        if (!res.ok) {
+          actionStatuses[repo.id] = { status: 'neutral', label: `API error ${res.status}` };
+          return;
+        }
+        const data = await res.json();
+        if (!data.workflow_runs || data.workflow_runs.length === 0) {
+          actionStatuses[repo.id] = { status: 'neutral', label: 'No workflow runs' };
+          return;
+        }
+        const run = data.workflow_runs[0];
+        const conclusion = run.conclusion;
+        const status = run.status;
+        if (status === 'in_progress' || status === 'queued' || status === 'waiting') {
+          actionStatuses[repo.id] = { status: 'pending', label: `${run.name}: ${status}` };
+        } else if (conclusion === 'success') {
+          actionStatuses[repo.id] = { status: 'success', label: `${run.name}: passed` };
+        } else if (conclusion === 'failure') {
+          actionStatuses[repo.id] = { status: 'failure', label: `${run.name}: failed` };
+        } else {
+          actionStatuses[repo.id] = { status: 'neutral', label: `${run.name}: ${conclusion || status}` };
+        }
+      } catch (err) {
+        actionStatuses[repo.id] = { status: 'neutral', label: 'Network error' };
+      }
+    }
+
+    async function refreshAllStatuses() {
+      if (!ghToken) return;
+      await Promise.all(state.repos.map(r => fetchActionStatus(r)));
+      renderRepos();
+    }
+
+    function updateGhUI() {
+      const statusEl = document.getElementById('gh-status');
+      const btnEl = document.getElementById('gh-btn');
+      if (ghToken) {
+        statusEl.textContent = 'connected';
+        statusEl.className = 'gh-status connected';
+        btnEl.textContent = 'GitHub';
+      } else {
+        statusEl.textContent = '';
+        statusEl.className = 'gh-status';
+        btnEl.textContent = 'Connect GitHub';
+      }
+    }
+
+    // Token modal
+    function openTokenModal() {
+      document.getElementById('token-input').value = ghToken ? '••••••••••••••••' : '';
+      document.getElementById('gh-disconnect-btn').style.display = ghToken ? 'block' : 'none';
+      document.getElementById('token-modal').classList.add('active');
+      if (!ghToken) setTimeout(() => document.getElementById('token-input').focus(), 100);
+    }
+
+    function closeTokenModal() {
+      document.getElementById('token-modal').classList.remove('active');
+    }
+
+    function saveToken() {
+      const val = document.getElementById('token-input').value.trim();
+      if (!val || val.startsWith('••')) { closeTokenModal(); return; }
+      ghToken = val;
+      localStorage.setItem('dt_gh_token', ghToken);
+      updateGhUI();
+      closeTokenModal();
+      refreshAllStatuses();
+    }
+
+    function disconnectGitHub() {
+      ghToken = '';
+      localStorage.removeItem('dt_gh_token');
+      Object.keys(actionStatuses).forEach(k => delete actionStatuses[k]);
+      updateGhUI();
+      renderRepos();
+      closeTokenModal();
+    }
+
     // Input listeners
     document.getElementById('repo-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') { addRepo(e.target.value); e.target.value = ''; }
@@ -729,16 +927,21 @@
     document.getElementById('prompt-modal').addEventListener('click', e => {
       if (e.target === e.currentTarget) closePromptModal();
     });
+    document.getElementById('token-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeTokenModal();
+    });
 
-    // Escape key closes modal
+    // Escape key closes modals
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closePromptModal();
+      if (e.key === 'Escape') { closePromptModal(); closeTokenModal(); }
     });
 
     // Init
     renderRepos();
     renderSites();
     renderPrompts();
+    updateGhUI();
+    refreshAllStatuses();
   </script>
 </body>
 </html>
