@@ -747,7 +747,8 @@
         return `
         <a href="${esc(r.url)}" target="_blank" rel="noopener" class="item" data-repo-id="${r.id}" style="text-decoration:none;color:inherit"
            onmouseenter="highlightLinked('repo','${r.id}')" onmouseleave="clearHighlight()">
-          <div class="item-icon repo">${initials(r.name)}</div>
+          <img src="https://icons.duckduckgo.com/ip3/${esc(r.domain)}.ico" width="28" height="28" style="border-radius:var(--radius-sm);flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+          <div class="item-icon repo" style="display:none">${initials(r.name)}</div>
           <div class="item-info">
             <div class="item-name">${esc(r.name)}${linked ? ' <span class="link-indicator">⇄</span>' : ''}</div>
             <div class="item-url">${esc(r.domain)}</div>
@@ -775,7 +776,7 @@
         const linked = getLinkedRepo(s.id);
         const isLinking = linkingMode && linkingMode.type === 'repo';
         const linkLabel = linked ? '⇄' : (isLinking ? '← link' : '⇄');
-        const favicon = `https://www.google.com/s2/favicons?domain=${esc(s.domain)}&sz=32`;
+        const favicon = `https://icons.duckduckgo.com/ip3/${esc(s.domain)}.ico`;
         return `
         <a href="${esc(s.url)}" target="_blank" rel="noopener" class="item" data-site-id="${s.id}" style="text-decoration:none;color:inherit"
            onmouseenter="highlightLinked('site','${s.id}')" onmouseleave="clearHighlight()">
