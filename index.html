@@ -302,6 +302,23 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
+    .tech-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 2px;
+    }
+    .tech-tag {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+
     .item-actions {
       display: flex;
       gap: 2px;
@@ -722,6 +739,7 @@
     // GitHub token
     let ghToken = localStorage.getItem('dt_gh_token') || '';
     const actionStatuses = {}; // keyed by repo id
+    const repoLanguages = {}; // keyed by repo id
 
     function persist() {
       localStorage.setItem('dt_repos', JSON.stringify(state.repos));
@@ -780,6 +798,7 @@
           <div class="item-info">
             <div class="item-name">${esc(r.name)}${linked ? ' <span class="link-indicator">⇄</span>' : ''}</div>
             <div class="item-url">${esc(r.domain)}</div>
+            ${repoLanguages[r.id] && repoLanguages[r.id].length ? `<div class="tech-stack">${repoLanguages[r.id].map(l => `<span class="tech-tag" title="${l.pct}%">${esc(l.name)}</span>`).join('')}</div>` : ''}
           </div>
           <div class="status-dot ${dotClass}" title="${esc(dotTitle)}"></div>
           ${dotClass === 'error' ? '<span class="status-label" style="color:#ef4444">⚠ hover for fix</span>' : ''}
@@ -1142,9 +1161,28 @@
       }
     }
 
+    async function fetchRepoLanguages(repo) {
+      const ghRepo = extractGhRepo(repo.url);
+      if (!ghRepo || !ghToken) return;
+      try {
+        const res = await fetch(`https://api.github.com/repos/${ghRepo}/languages`, {
+          headers: { Authorization: `token ${ghToken}`, Accept: 'application/vnd.github.v3+json' }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        // Sort by bytes descending, take top languages
+        const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+        const total = sorted.reduce((s, e) => s + e[1], 0);
+        repoLanguages[repo.id] = sorted.map(([lang, bytes]) => ({
+          name: lang,
+          pct: Math.round((bytes / total) * 100)
+        }));
+      } catch {}
+    }
+
     async function refreshAllStatuses() {
       if (!ghToken) return;
-      await Promise.all(state.repos.map(r => fetchActionStatus(r)));
+      await Promise.all(state.repos.flatMap(r => [fetchActionStatus(r), fetchRepoLanguages(r)]));
       renderRepos();
     }
 
