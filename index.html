@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>devtools</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0b;
+      --surface: #111113;
+      --surface-hover: #18181b;
+      --border: #1e1e22;
+      --border-subtle: #161618;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --text-dim: #52525b;
+      --accent: #6d28d9;
+      --accent-soft: #7c3aed15;
+      --accent-glow: #7c3aed30;
+      --green: #059669;
+      --green-soft: #05966915;
+      --blue: #2563eb;
+      --blue-soft: #2563eb15;
+      --radius: 8px;
+      --radius-sm: 5px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Top bar */
+    .topbar {
+      height: 48px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      background: var(--surface);
+      gap: 10px;
+    }
+
+    .topbar .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .topbar .logo span {
+      color: var(--accent);
+    }
+
+    .topbar .sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+    }
+
+    .topbar .tagline {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.4fr;
+      height: calc(100vh - 48px);
+    }
+
+    .panel {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel:last-child { border-right: none; }
+
+    .panel-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-dim);
+    }
+
+    .panel-count {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* Items */
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s;
+      group: true;
+      position: relative;
+    }
+
+    .item:hover { background: var(--surface-hover); }
+
+    .item-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .item-icon.repo {
+      background: var(--accent-soft);
+      color: #a78bfa;
+      border: 1px solid var(--accent-glow);
+    }
+
+    .item-icon.site {
+      background: var(--green-soft);
+      color: #34d399;
+      border: 1px solid #05966930;
+    }
+
+    .item-info { flex: 1; min-width: 0; }
+
+    .item-name {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-url {
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .item:hover .item-actions { opacity: 1; }
+
+    .item-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    .item-btn:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* Add bar */
+    .add-bar {
+      padding: 8px;
+      border-top: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .add-input {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .add-input::placeholder { color: var(--text-dim); }
+    .add-input:focus { border-color: #7c3aed40; }
+
+    /* Prompt items */
+    .prompt-item {
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+      border: 1px solid transparent;
+    }
+
+    .prompt-item:hover {
+      background: var(--surface-hover);
+      border-color: var(--border);
+    }
+
+    .prompt-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .prompt-name {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .prompt-actions {
+      display: flex;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .prompt-item:hover .prompt-actions { opacity: 1; }
+
+    .prompt-preview {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.6;
+    }
+
+    .copy-toast {
+      font-size: 10px;
+      color: #34d399;
+      font-weight: 500;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: #00000080;
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 480px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px #00000060;
+      transform: translateY(8px);
+      transition: transform 0.2s;
+    }
+
+    .modal-overlay.active .modal { transform: translateY(0); }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover { background: var(--border); color: var(--text); }
+
+    .modal-body { padding: 16px 20px; }
+
+    .modal-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      margin-bottom: 14px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .modal-textarea {
+      width: 100%;
+      padding: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 11.5px;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.7;
+      outline: none;
+      resize: vertical;
+      min-height: 140px;
+    }
+
+    .modal-input:focus, .modal-textarea:focus { border-color: #7c3aed40; }
+
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface-hover);
+      color: var(--text);
+      transition: all 0.15s;
+    }
+
+    .btn:hover { border-color: #7c3aed40; }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #5b21b6; }
+
+    .btn-danger {
+      background: transparent;
+      border-color: #dc262620;
+      color: #ef4444;
+    }
+
+    .btn-danger:hover { background: #dc262615; }
+
+    /* Empty state */
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-dim);
+      font-size: 11px;
+      text-align: center;
+      padding: 20px;
+      line-height: 1.8;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+      }
+      .panel { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo"><span>&gt;</span> devtools</div>
+    <div class="sep"></div>
+    <div class="tagline">repos &middot; sites &middot; prompts</div>
+  </div>
+
+  <div class="layout">
+    <!-- Repos -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Repos</span>
+        <span class="panel-count" id="repo-count">0</span>
+      </div>
+      <div class="panel-body" id="repo-list"></div>
+      <div class="add-bar">
+        <input class="add-input" id="repo-input" placeholder="Paste repo URL and press Enter" />
+      </div>
+    </div>
+
+    <!-- Sites -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Sites</span>
+        <span class="panel-count" id="site-count">0</span>
+      </div>
+      <div class="panel-body" id="site-list"></div>
+      <div class="add-bar">
+        <input class="add-input" id="site-input" placeholder="Paste site URL and press Enter" />
+      </div>
+    </div>
+
+    <!-- Prompts -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Prompts</span>
+        <span class="panel-count" id="prompt-count">0</span>
+      </div>
+      <div class="panel-body" id="prompt-list"></div>
+      <div class="add-bar">
+        <button class="btn btn-primary" style="width:100%" onclick="openPromptModal()">+ New Prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Modal -->
+  <div class="modal-overlay" id="prompt-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">New Prompt</span>
+        <button class="modal-close" onclick="closePromptModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label">Name</label>
+        <input class="modal-input" id="prompt-name-input" placeholder="e.g. Code Review" />
+        <label class="modal-label">Prompt</label>
+        <textarea class="modal-textarea" id="prompt-text-input" placeholder="Enter your prompt text..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closePromptModal()">Cancel</button>
+        <button class="btn btn-primary" id="modal-save-btn" onclick="savePrompt()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    const state = {
+      repos: JSON.parse(localStorage.getItem('dt_repos') || '[]'),
+      sites: JSON.parse(localStorage.getItem('dt_sites') || '[]'),
+      prompts: JSON.parse(localStorage.getItem('dt_prompts') || '[]'),
+    };
+
+    let editingPromptId = null;
+
+    function persist() {
+      localStorage.setItem('dt_repos', JSON.stringify(state.repos));
+      localStorage.setItem('dt_sites', JSON.stringify(state.sites));
+      localStorage.setItem('dt_prompts', JSON.stringify(state.prompts));
+    }
+
+    // Helpers
+    function extractName(url) {
+      try {
+        const u = new URL(url);
+        const parts = u.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+        if (parts.length >= 2) return parts.slice(-2).join('/');
+        if (parts.length === 1) return parts[0];
+        return u.hostname;
+      } catch {
+        return url;
+      }
+    }
+
+    function extractDomain(url) {
+      try { return new URL(url).hostname.replace('www.', ''); }
+      catch { return url; }
+    }
+
+    function initials(name) {
+      const parts = name.split('/');
+      const last = parts[parts.length - 1];
+      return last.substring(0, 2).toUpperCase();
+    }
+
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+    // Render repos
+    function renderRepos() {
+      const el = document.getElementById('repo-list');
+      document.getElementById('repo-count').textContent = state.repos.length;
+
+      if (!state.repos.length) {
+        el.innerHTML = '<div class="empty">Paste a repo URL below<br>to get started</div>';
+        return;
+      }
+
+      el.innerHTML = state.repos.map(r => `
+        <a href="${esc(r.url)}" target="_blank" rel="noopener" class="item" style="text-decoration:none;color:inherit">
+          <div class="item-icon repo">${initials(r.name)}</div>
+          <div class="item-info">
+            <div class="item-name">${esc(r.name)}</div>
+            <div class="item-url">${esc(r.domain)}</div>
+          </div>
+          <div class="item-actions">
+            <button class="item-btn" title="Remove" onclick="event.preventDefault();removeRepo('${r.id}')">✕</button>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    // Render sites
+    function renderSites() {
+      const el = document.getElementById('site-list');
+      document.getElementById('site-count').textContent = state.sites.length;
+
+      if (!state.sites.length) {
+        el.innerHTML = '<div class="empty">Paste a site URL below<br>to get started</div>';
+        return;
+      }
+
+      el.innerHTML = state.sites.map(s => `
+        <a href="${esc(s.url)}" target="_blank" rel="noopener" class="item" style="text-decoration:none;color:inherit">
+          <div class="item-icon site">${initials(s.name)}</div>
+          <div class="item-info">
+            <div class="item-name">${esc(s.name)}</div>
+            <div class="item-url">${esc(s.domain)}</div>
+          </div>
+          <div class="item-actions">
+            <button class="item-btn" title="Remove" onclick="event.preventDefault();removeSite('${s.id}')">✕</button>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    // Render prompts
+    function renderPrompts() {
+      const el = document.getElementById('prompt-list');
+      document.getElementById('prompt-count').textContent = state.prompts.length;
+
+      if (!state.prompts.length) {
+        el.innerHTML = '<div class="empty">Add prompts to build<br>your quick-copy library</div>';
+        return;
+      }
+
+      el.innerHTML = state.prompts.map(p => `
+        <div class="prompt-item" onclick="copyPrompt('${p.id}', this)">
+          <div class="prompt-top">
+            <span class="prompt-name">${esc(p.name)}</span>
+            <div class="prompt-actions">
+              <button class="item-btn" title="Edit" onclick="event.stopPropagation();editPrompt('${p.id}')">✎</button>
+              <button class="item-btn" title="Remove" onclick="event.stopPropagation();removePrompt('${p.id}')">✕</button>
+            </div>
+          </div>
+          <div class="prompt-preview">${esc(p.text)}</div>
+        </div>
+      `).join('');
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // Add
+    function addRepo(url) {
+      url = url.trim();
+      if (!url) return;
+      if (!url.startsWith('http')) url = 'https://' + url;
+      state.repos.push({ id: uid(), url, name: extractName(url), domain: extractDomain(url) });
+      persist(); renderRepos();
+    }
+
+    function addSite(url) {
+      url = url.trim();
+      if (!url) return;
+      if (!url.startsWith('http')) url = 'https://' + url;
+      state.sites.push({ id: uid(), url, name: extractName(url), domain: extractDomain(url) });
+      persist(); renderSites();
+    }
+
+    // Remove
+    function removeRepo(id) { state.repos = state.repos.filter(r => r.id !== id); persist(); renderRepos(); }
+    function removeSite(id) { state.sites = state.sites.filter(s => s.id !== id); persist(); renderSites(); }
+    function removePrompt(id) { state.prompts = state.prompts.filter(p => p.id !== id); persist(); renderPrompts(); }
+
+    // Copy prompt
+    function copyPrompt(id, el) {
+      const p = state.prompts.find(x => x.id === id);
+      if (!p) return;
+      navigator.clipboard.writeText(p.text);
+      const nameEl = el.querySelector('.prompt-name');
+      const orig = nameEl.textContent;
+      nameEl.innerHTML = '<span class="copy-toast">Copied!</span>';
+      setTimeout(() => { nameEl.textContent = orig; }, 1200);
+    }
+
+    // Prompt modal
+    function openPromptModal() {
+      editingPromptId = null;
+      document.getElementById('modal-title').textContent = 'New Prompt';
+      document.getElementById('prompt-name-input').value = '';
+      document.getElementById('prompt-text-input').value = '';
+      document.getElementById('prompt-modal').classList.add('active');
+      setTimeout(() => document.getElementById('prompt-name-input').focus(), 100);
+    }
+
+    function editPrompt(id) {
+      const p = state.prompts.find(x => x.id === id);
+      if (!p) return;
+      editingPromptId = id;
+      document.getElementById('modal-title').textContent = 'Edit Prompt';
+      document.getElementById('prompt-name-input').value = p.name;
+      document.getElementById('prompt-text-input').value = p.text;
+      document.getElementById('prompt-modal').classList.add('active');
+      setTimeout(() => document.getElementById('prompt-name-input').focus(), 100);
+    }
+
+    function closePromptModal() {
+      document.getElementById('prompt-modal').classList.remove('active');
+      editingPromptId = null;
+    }
+
+    function savePrompt() {
+      const name = document.getElementById('prompt-name-input').value.trim();
+      const text = document.getElementById('prompt-text-input').value.trim();
+      if (!name || !text) return;
+
+      if (editingPromptId) {
+        const p = state.prompts.find(x => x.id === editingPromptId);
+        if (p) { p.name = name; p.text = text; }
+      } else {
+        state.prompts.push({ id: uid(), name, text });
+      }
+
+      persist(); renderPrompts(); closePromptModal();
+    }
+
+    // Input listeners
+    document.getElementById('repo-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { addRepo(e.target.value); e.target.value = ''; }
+    });
+
+    document.getElementById('site-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { addSite(e.target.value); e.target.value = ''; }
+    });
+
+    // Close modal on overlay click
+    document.getElementById('prompt-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closePromptModal();
+    });
+
+    // Escape key closes modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closePromptModal();
+    });
+
+    // Init
+    renderRepos();
+    renderSites();
+    renderPrompts();
+  </script>
+</body>
+</html>
