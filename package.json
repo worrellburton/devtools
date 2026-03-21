@@ -1,0 +1,11 @@
+{
+  "name": "devtools",
+  "version": "0.1.0",
+  "description": "A collection of developer tools and utilities",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js",
+    "start": "node src/index.js"
+  },
+  "license": "MIT"
+}
