@@ -810,6 +810,7 @@
         const favicon = `https://icons.duckduckgo.com/ip3/${esc(s.domain)}.ico`;
         return `
         <a href="${esc(s.url)}" target="_blank" rel="noopener" class="item" data-site-id="${s.id}" style="text-decoration:none;color:inherit"
+           onclick="bumpSite('${s.id}')"
            onmouseenter="highlightLinked('site','${s.id}')" onmouseleave="clearHighlight()">
           <img src="${favicon}" width="28" height="28" style="border-radius:var(--radius-sm);flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
           <div class="item-icon site" style="display:none">${initials(s.name)}</div>
@@ -872,6 +873,17 @@
       if (!url.startsWith('http')) url = 'https://' + url;
       state.sites.push({ id: uid(), url, name: extractName(url), domain: extractDomain(url) });
       persist(); renderSites();
+    }
+
+    // Bump clicked site to top
+    function bumpSite(id) {
+      const idx = state.sites.findIndex(s => s.id === id);
+      if (idx > 0) {
+        const [site] = state.sites.splice(idx, 1);
+        state.sites.unshift(site);
+        persist();
+        renderSites();
+      }
     }
 
     // Remove
