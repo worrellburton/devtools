@@ -784,6 +784,7 @@
           <div class="status-dot ${dotClass}" title="${esc(dotTitle)}"></div>
           ${dotClass === 'error' ? '<span class="status-label" style="color:#ef4444">⚠ hover for fix</span>' : ''}
           <div class="item-actions">
+            ${dotClass === 'neutral' || dotClass === 'none' ? `<button class="setup-btn enable-btn" title="Generate workflow prompt" onclick="event.preventDefault();event.stopPropagation();enableActionsRepo('${r.id}')" style="border-color:#f59e0b40;color:#f59e0b;background:#f59e0b10">Enable Actions</button>` : ''}
             <button class="setup-btn" title="Generate setup prompt" onclick="event.preventDefault();event.stopPropagation();setupRepo('${r.id}')">Setup</button>
             <button class="item-btn" title="${linked ? 'Unlink' : 'Link to site'}" onclick="startLink('repo','${r.id}',event)">${linkLabel}</button>
             <button class="item-btn" title="Remove" onclick="event.preventDefault();removeRepo('${r.id}')">✕</button>
@@ -930,17 +931,23 @@
       persist(); renderPrompts(); closePromptModal();
     }
 
-    // Setup prompt template
+    // Prompt templates
     const SETUP_PROMPT_TEMPLATE = `Connect to my GitHub repo and set up the codebase. Make sure it's connected to (branch) successfully and we are accessing the site that the build/deploy published correctly. Changes being made now on will be on most up to date site.\nSend me the live URL (e.g., GitHub Pages link or deploy preview) once you've confirmed it's up.\n\nOnce done say 'We got greensmoke'`;
 
-    // Ensure setup prompt exists in prompts panel
+    const ENABLE_ACTIONS_TEMPLATE = `Add a GitHub Actions workflow to my repo (repo). The workflow should:\n1. Deploy to GitHub Pages on push to (branch)\n2. Keep all existing code, files, and configuration intact — do NOT remove or overwrite anything\n3. Use the standard GitHub Pages deploy action (actions/deploy-pages)\n4. Enable GitHub Pages in the repo settings if not already enabled (source: GitHub Actions)\n5. Make sure the workflow file is at .github/workflows/deploy.yml\n\nAfter adding the workflow, push to (branch) and confirm the action runs successfully.\nSend me the live GitHub Pages URL once deployed.\n\nOnce done say 'We got greensmoke'`;
+
+    // Ensure built-in prompts exist in prompts panel
     function ensureSetupPrompt() {
-      const existing = state.prompts.find(p => p.name === 'Repo Setup');
-      if (!existing) {
+      let changed = false;
+      if (!state.prompts.find(p => p.name === 'Repo Setup')) {
         state.prompts.push({ id: uid(), name: 'Repo Setup', text: SETUP_PROMPT_TEMPLATE });
-        persist();
-        renderPrompts();
+        changed = true;
       }
+      if (!state.prompts.find(p => p.name === 'Enable Actions')) {
+        state.prompts.push({ id: uid(), name: 'Enable Actions', text: ENABLE_ACTIONS_TEMPLATE });
+        changed = true;
+      }
+      if (changed) { persist(); renderPrompts(); }
     }
 
     async function fetchMostActiveBranch(ghRepo) {
@@ -976,6 +983,35 @@
       } catch {
         return null;
       }
+    }
+
+    async function enableActionsRepo(repoId) {
+      const repo = state.repos.find(r => r.id === repoId);
+      if (!repo) return;
+      const ghRepo = extractGhRepo(repo.url);
+      if (!ghRepo) { alert('Not a valid GitHub repo URL'); return; }
+      if (!ghToken) { openTokenModal(); return; }
+
+      const btn = document.querySelector(`[data-repo-id="${repoId}"] .enable-btn`);
+      if (btn) { btn.textContent = '...'; btn.classList.add('loading'); }
+
+      const branch = await fetchMostActiveBranch(ghRepo);
+      const branchName = branch || 'main';
+
+      const prompt = ENABLE_ACTIONS_TEMPLATE
+        .replace(/\(repo\)/g, ghRepo)
+        .replace(/\(branch\)/g, branchName);
+
+      await navigator.clipboard.writeText(prompt);
+
+      if (btn) {
+        btn.classList.remove('loading');
+        btn.textContent = `✓ Copied`;
+        btn.style.color = '#34d399';
+        btn.style.borderColor = '#34d39940';
+        setTimeout(() => { btn.textContent = 'Enable Actions'; btn.style.color = ''; btn.style.borderColor = ''; }, 2500);
+      }
+      ensureSetupPrompt();
     }
 
     async function setupRepo(repoId) {
