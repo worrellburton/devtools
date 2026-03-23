@@ -615,7 +615,7 @@ function FaviconImg({ domain, type, name }: { domain: string; type: "repo" | "si
   const [failed, setFailed] = useState(false);
   if (failed) return <div className={`item-icon ${type}`}>{initials(name)}</div>;
   return (
-    <img src={`https://icons.duckduckgo.com/ip3/${domain}.ico`} width={32} height={32}
+    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`} width={32} height={32}
       style={{ borderRadius: "var(--radius-sm)", flexShrink: 0 }} onError={() => setFailed(true)} alt="" />
   );
 }
