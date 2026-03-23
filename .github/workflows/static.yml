@@ -2,7 +2,7 @@ name: Deploy static content to Pages
 
 on:
   push:
-    branches: ["claude/initial-setup-Csf5l"]
+    branches: ["claude/initial-setup-Csf5l", "claude/initial-setup-gPtZu"]
   workflow_dispatch:
 
 permissions:
