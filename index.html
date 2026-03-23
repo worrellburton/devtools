@@ -790,19 +790,32 @@
       return null;
     }
 
+    function mergeArrays(local, remote) {
+      const ids = new Set(local.map(i => i.id));
+      const merged = [...local];
+      for (const item of remote) {
+        if (!ids.has(item.id)) { merged.push(item); ids.add(item.id); }
+      }
+      return merged;
+    }
+
     async function loadSyncedData() {
       const data = await syncPull();
       if (!data) return;
       const hasRemoteData = (data.repos && data.repos.length) || (data.sites && data.sites.length) || (data.prompts && data.prompts.length);
       if (!hasRemoteData) return;
-      state.repos = data.repos || [];
-      state.sites = data.sites || [];
-      state.prompts = data.prompts || [];
-      if (data.links) { links = data.links; persistLinks(); }
-      // Save to localStorage as cache
-      localStorage.setItem('dt_repos', JSON.stringify(state.repos));
-      localStorage.setItem('dt_sites', JSON.stringify(state.sites));
-      localStorage.setItem('dt_prompts', JSON.stringify(state.prompts));
+      // Merge remote into local so locally-added items are never lost
+      state.repos = mergeArrays(state.repos, data.repos || []);
+      state.sites = mergeArrays(state.sites, data.sites || []);
+      state.prompts = mergeArrays(state.prompts, data.prompts || []);
+      if (data.links) {
+        const linkKeys = new Set(links.map(l => l.repoId + ':' + l.siteId));
+        for (const l of data.links) {
+          if (!linkKeys.has(l.repoId + ':' + l.siteId)) links.push(l);
+        }
+        persistLinks();
+      }
+      persist();
       renderRepos(); renderSites(); renderPrompts();
       refreshAllStatuses();
     }
