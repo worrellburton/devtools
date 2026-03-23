@@ -8,15 +8,15 @@ import {
   type DatabaseReference,
 } from "firebase/database";
 
-// ---- PASTE YOUR FIREBASE CONFIG HERE ----
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  databaseURL: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyCpJ0wivyrD1_9wNGT8Ch2q3bOzCo6DtDk",
+  authDomain: "devtools-87.firebaseapp.com",
+  databaseURL: "https://devtools-87-default-rtdb.firebaseio.com",
+  projectId: "devtools-87",
+  storageBucket: "devtools-87.firebasestorage.app",
+  messagingSenderId: "758782519937",
+  appId: "1:758782519937:web:9e061d9ec986de36f6bb80",
+  measurementId: "G-Q690H6CSN3",
 };
 
 let app: FirebaseApp | null = null;
