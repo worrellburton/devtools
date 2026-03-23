@@ -727,7 +727,6 @@
       localStorage.setItem('dt_repos', JSON.stringify(state.repos));
       localStorage.setItem('dt_sites', JSON.stringify(state.sites));
       localStorage.setItem('dt_prompts', JSON.stringify(state.prompts));
-      scheduleSyncPush();
     }
 
     // Push data to GitHub repo
@@ -1176,7 +1175,7 @@
     // Linking repos <-> sites
     // Links stored as { repoId, siteId } in localStorage
     let links = JSON.parse(localStorage.getItem('dt_links') || '[]');
-    function persistLinks() { localStorage.setItem('dt_links', JSON.stringify(links)); scheduleSyncPush(); }
+    function persistLinks() { localStorage.setItem('dt_links', JSON.stringify(links)); }
 
     let linkingMode = null; // { type: 'repo'|'site', id: string }
 
@@ -1307,8 +1306,7 @@
     renderPrompts();
     updateGhUI();
     refreshAllStatuses();
-    // Load synced data from GitHub (overwrites local if remote has data)
-    loadSyncedData();
+    // Data persists in localStorage only
   </script>
 
   </div><!-- /app-content -->
