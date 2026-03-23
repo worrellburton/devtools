@@ -852,7 +852,7 @@
         const linkLabel = linked ? '⇄' : (isLinking ? '← link' : '⇄');
         return `
         <a href="${esc(r.url)}" target="_blank" rel="noopener" class="item" data-repo-id="${r.id}" style="text-decoration:none;color:inherit"
-           onmouseenter="highlightLinked('repo','${r.id}')" onmouseleave="clearHighlight()">
+           onclick="bumpRepo('${r.id}',event)" onmouseenter="highlightLinked('repo','${r.id}')" onmouseleave="clearHighlight()">
           <img src="https://icons.duckduckgo.com/ip3/${esc(r.domain)}.ico" width="32" height="32" style="border-radius:var(--radius-sm);flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
           <div class="item-icon repo" style="display:none">${initials(r.name)}</div>
           <div class="item-info">
@@ -885,7 +885,7 @@
         const favicon = `https://icons.duckduckgo.com/ip3/${esc(s.domain)}.ico`;
         return `
         <a href="${esc(s.url)}" target="_blank" rel="noopener" class="item" data-site-id="${s.id}" style="text-decoration:none;color:inherit"
-           onmouseenter="highlightLinked('site','${s.id}')" onmouseleave="clearHighlight()">
+           onclick="bumpSite('${s.id}',event)" onmouseenter="highlightLinked('site','${s.id}')" onmouseleave="clearHighlight()">
           <img src="${favicon}" width="32" height="32" style="border-radius:var(--radius-sm);flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
           <div class="item-icon site" style="display:none">${initials(s.name)}</div>
           <div class="item-info">
@@ -947,6 +947,45 @@
       if (!url.startsWith('http')) url = 'https://' + url;
       state.sites.push({ id: uid(), url, name: extractName(url), domain: extractDomain(url) });
       persist(); renderSites();
+    }
+
+    // Bump to top — clicking a repo or site moves both it and its linked counterpart to top
+    function bumpRepo(id, event) {
+      event.preventDefault();
+      const idx = state.repos.findIndex(r => r.id === id);
+      if (idx > 0) {
+        const [item] = state.repos.splice(idx, 1);
+        state.repos.unshift(item);
+      }
+      // Also bump linked site
+      const siteId = getLinkedSite(id);
+      if (siteId) {
+        const si = state.sites.findIndex(s => s.id === siteId);
+        if (si > 0) {
+          const [site] = state.sites.splice(si, 1);
+          state.sites.unshift(site);
+        }
+      }
+      persist(); renderRepos(); renderSites();
+    }
+
+    function bumpSite(id, event) {
+      event.preventDefault();
+      const idx = state.sites.findIndex(s => s.id === id);
+      if (idx > 0) {
+        const [item] = state.sites.splice(idx, 1);
+        state.sites.unshift(item);
+      }
+      // Also bump linked repo
+      const repoId = getLinkedRepo(id);
+      if (repoId) {
+        const ri = state.repos.findIndex(r => r.id === repoId);
+        if (ri > 0) {
+          const [repo] = state.repos.splice(ri, 1);
+          state.repos.unshift(repo);
+        }
+      }
+      persist(); renderRepos(); renderSites();
     }
 
     // Remove
