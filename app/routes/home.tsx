@@ -611,11 +611,19 @@ export default function Home() {
   );
 }
 
+function faviconUrl(domain: string): string | null {
+  if (domain === "github.com" || domain.endsWith(".github.io")) return "https://github.githubassets.com/favicons/favicon.svg";
+  if (domain === "gitlab.com" || domain.endsWith(".gitlab.io")) return "https://gitlab.com/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8571571ccfa3e91c7cee0547e3b3.png";
+  if (domain === "bitbucket.org") return "https://wac-cdn.atlassian.com/assets/img/favicons/bitbucket/favicon.png";
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+}
+
 function FaviconImg({ domain, type, name }: { domain: string; type: "repo" | "site"; name: string }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <div className={`item-icon ${type}`}>{initials(name)}</div>;
+  const src = faviconUrl(domain);
+  if (failed || !src) return <div className={`item-icon ${type}`}>{initials(name)}</div>;
   return (
-    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`} width={32} height={32}
+    <img src={src} width={32} height={32}
       style={{ borderRadius: "var(--radius-sm)", flexShrink: 0 }} onError={() => setFailed(true)} alt="" />
   );
 }
