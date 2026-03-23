@@ -589,6 +589,16 @@
 </head>
 <body>
 
+  <!-- Password Screen -->
+  <div id="lock-screen" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:20px;color:var(--text);letter-spacing:2px;margin-bottom:8px"><span style="color:var(--accent)">&gt;</span> devtools</div>
+    <input type="password" id="lock-input" placeholder="Enter password" autofocus
+      style="width:240px;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;text-align:center;outline:none;" />
+    <div id="lock-error" style="color:#ef4444;font-size:11px;height:16px;"></div>
+  </div>
+
+  <div id="app-content" style="display:none;">
+
   <div class="topbar">
     <div class="logo"><span>&gt;</span> devtools</div>
     <div class="sep"></div>
@@ -596,6 +606,9 @@
     <div class="topbar-right">
       <span class="gh-status" id="gh-status"></span>
       <button class="topbar-btn" id="gh-btn" onclick="openTokenModal()">GitHub</button>
+      <button class="topbar-btn" onclick="exportData()" title="Export all data as JSON">Export</button>
+      <button class="topbar-btn" onclick="document.getElementById('import-file').click()" title="Import data from JSON file">Import</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)" />
       <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9790;</button>
     </div>
   </div>
@@ -1104,6 +1117,45 @@
       if (e.key === 'Escape') { closePromptModal(); closeTokenModal(); }
     });
 
+    // Export/Import
+    function exportData() {
+      const data = {
+        repos: state.repos,
+        sites: state.sites,
+        prompts: state.prompts,
+        links: links,
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'devtools-backup.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.repos) { state.repos = data.repos; }
+          if (data.sites) { state.sites = data.sites; }
+          if (data.prompts) { state.prompts = data.prompts; }
+          if (data.links) { links = data.links; persistLinks(); }
+          persist();
+          renderRepos(); renderSites(); renderPrompts();
+          refreshAllStatuses();
+        } catch (err) {
+          alert('Invalid backup file.');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
     // Init
     renderRepos();
     renderSites();
@@ -1111,5 +1163,52 @@
     updateGhUI();
     refreshAllStatuses();
   </script>
+
+  </div><!-- /app-content -->
+
+  <script>
+    (function() {
+      const PASS = 'awds';
+      const SESSION_KEY = 'dt_unlocked';
+      const lockScreen = document.getElementById('lock-screen');
+      const appContent = document.getElementById('app-content');
+      const lockInput = document.getElementById('lock-input');
+      const lockError = document.getElementById('lock-error');
+
+      function unlock() {
+        lockScreen.style.display = 'none';
+        appContent.style.display = '';
+        sessionStorage.setItem(SESSION_KEY, '1');
+      }
+
+      // Stay unlocked for the browser session
+      if (sessionStorage.getItem(SESSION_KEY) === '1') {
+        unlock();
+      }
+
+      lockInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          if (lockInput.value === PASS) {
+            unlock();
+          } else {
+            lockError.textContent = 'Incorrect password';
+            lockInput.value = '';
+            lockInput.classList.add('shake');
+            setTimeout(() => lockInput.classList.remove('shake'), 400);
+          }
+        }
+      });
+    })();
+  </script>
+
+  <style>
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake { animation: shake 0.3s ease; }
+    #lock-input:focus { border-color: var(--accent); }
+  </style>
 </body>
 </html>
