@@ -75,6 +75,8 @@ export default function Home() {
   const [promptText, setPromptText] = useState("");
   const [tokenInput, setTokenInput] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyCount, setCopyCount] = useState(0);
+  const [copyEmoji, setCopyEmoji] = useState("");
 
   const connectedRef = useRef(false);
   const skipNextRef = useRef(false);
@@ -266,11 +268,15 @@ export default function Home() {
     setPromptModal(false);
   }
 
+  const copyEmojis = ["🎉","🚀","✨","🔥","⚡","💫","🌟","🎯","💡","🦄","🍀","🎸","🌈","💎","🧠","👾","🐙","🦊","🍕","🎲"];
+
   function copyPrompt(id: string) {
     const p = prompts.find((x) => x.id === id);
     if (!p) return;
     navigator.clipboard.writeText(p.text);
     setCopiedId(id);
+    setCopyCount((c) => c + 1);
+    setCopyEmoji(copyEmojis[Math.floor(Math.random() * copyEmojis.length)]);
     setTimeout(() => setCopiedId(null), 1200);
   }
 
@@ -531,6 +537,7 @@ export default function Home() {
         <div className="panel">
           <div className="panel-header">
             <span className="panel-title">Prompts</span>
+            {copyCount > 0 && <span className="copy-counter">{copyEmoji} {copyCount} copied</span>}
             <span className="panel-count">{prompts.length}</span>
           </div>
           <div className="panel-body">
