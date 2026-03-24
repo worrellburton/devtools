@@ -47,6 +47,7 @@ export type DevtoolsData = {
   repos: Repo[];
   sites: Site[];
   prompts: Prompt[];
+  dbs: Db[];
   links: Link[];
   ghToken: string;
   theme: "light" | "dark";
@@ -73,6 +74,13 @@ export type Prompt = {
   text: string;
 };
 
+export type Db = {
+  id: string;
+  url: string;
+  name: string;
+  domain: string;
+};
+
 export type Link = {
   repoId: string;
   siteId: string;
@@ -82,6 +90,7 @@ const defaultData: DevtoolsData = {
   repos: [],
   sites: [],
   prompts: [],
+  dbs: [],
   links: [],
   ghToken: "",
   theme: "light",

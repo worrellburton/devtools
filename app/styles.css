@@ -163,7 +163,7 @@ body::before {
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.4fr;
+  grid-template-columns: 1fr 1fr 1fr 1.4fr;
   height: calc(100vh - 56px);
 }
 
@@ -628,7 +628,7 @@ body::before {
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
   }
   .panel { border-right: none; border-bottom: 1px solid var(--border); }
 }

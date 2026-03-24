@@ -7,6 +7,7 @@ import {
   type Repo,
   type Site,
   type Prompt,
+  type Db,
   type Link,
 } from "../firebase";
 
@@ -62,6 +63,7 @@ export default function Home() {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [dbs, setDbs] = useState<Db[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [ghToken, setGhToken] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -88,10 +90,10 @@ export default function Home() {
   }, [theme]);
 
   const saveToFirebase = useCallback(
-    (r: Repo[], s: Site[], p: Prompt[], l: Link[], t: string, th: "light" | "dark") => {
+    (r: Repo[], s: Site[], p: Prompt[], d: Db[], l: Link[], t: string, th: "light" | "dark") => {
       if (!connectedRef.current) return;
       skipNextRef.current = true;
-      save({ repos: r, sites: s, prompts: p, links: l, ghToken: t, theme: th });
+      save({ repos: r, sites: s, prompts: p, dbs: d, links: l, ghToken: t, theme: th });
     },
     []
   );
@@ -121,6 +123,7 @@ export default function Home() {
       setRepos(data.repos);
       setSites(data.sites);
       setPrompts(data.prompts);
+      setDbs(data.dbs);
       setLinks(data.links);
       setGhToken(data.ghToken);
       setTheme(data.theme);
@@ -148,8 +151,8 @@ export default function Home() {
     return links.find((l) => l.siteId === siteId)?.repoId ?? null;
   }
 
-  function persist(r: Repo[], s: Site[], p: Prompt[], l: Link[], t?: string, th?: "light" | "dark") {
-    saveToFirebase(r, s, p, l, t ?? ghToken, th ?? theme);
+  function persist(r: Repo[], s: Site[], p: Prompt[], d: Db[], l: Link[], t?: string, th?: "light" | "dark") {
+    saveToFirebase(r, s, p, d, l, t ?? ghToken, th ?? theme);
   }
 
   function addRepo(url: string) {
@@ -159,7 +162,7 @@ export default function Home() {
     const repo: Repo = { id: uid(), url, name: extractName(url), domain: extractDomain(url) };
     const nr = [...repos, repo];
     setRepos(nr);
-    persist(nr, sites, prompts, links);
+    persist(nr, sites, prompts, dbs, links);
     if (ghToken) fetchActionStatus(repo, ghToken);
   }
 
@@ -168,7 +171,7 @@ export default function Home() {
     const nl = links.filter((l) => l.repoId !== id);
     setRepos(nr);
     setLinks(nl);
-    persist(nr, sites, prompts, nl);
+    persist(nr, sites, prompts, dbs, nl);
   }
 
   function bumpRepo(id: string) {
@@ -190,7 +193,7 @@ export default function Home() {
     }
     setRepos(nr);
     setSites(ns);
-    persist(nr, ns, prompts, links);
+    persist(nr, ns, prompts, dbs, links);
   }
 
   function addSite(url: string) {
@@ -200,7 +203,7 @@ export default function Home() {
     const site: Site = { id: uid(), url, name: extractName(url), domain: extractDomain(url) };
     const ns = [...sites, site];
     setSites(ns);
-    persist(repos, ns, prompts, links);
+    persist(repos, ns, prompts, dbs, links);
   }
 
   function removeSite(id: string) {
@@ -208,7 +211,7 @@ export default function Home() {
     const nl = links.filter((l) => l.siteId !== id);
     setSites(ns);
     setLinks(nl);
-    persist(repos, ns, prompts, nl);
+    persist(repos, ns, prompts, dbs, nl);
   }
 
   function bumpSite(id: string) {
@@ -230,13 +233,29 @@ export default function Home() {
     }
     setRepos(nr);
     setSites(ns);
-    persist(nr, ns, prompts, links);
+    persist(nr, ns, prompts, dbs, links);
   }
 
   function removePrompt(id: string) {
     const np = prompts.filter((p) => p.id !== id);
     setPrompts(np);
-    persist(repos, sites, np, links);
+    persist(repos, sites, np, dbs, links);
+  }
+
+  function addDb(url: string) {
+    url = url.trim();
+    if (!url) return;
+    if (!url.startsWith("http")) url = "https://" + url;
+    const db: Db = { id: uid(), url, name: extractName(url), domain: extractDomain(url) };
+    const nd = [...dbs, db];
+    setDbs(nd);
+    persist(repos, sites, prompts, nd, links);
+  }
+
+  function removeDb(id: string) {
+    const nd = dbs.filter((d) => d.id !== id);
+    setDbs(nd);
+    persist(repos, sites, prompts, nd, links);
   }
 
   function openNewPrompt() {
@@ -266,7 +285,7 @@ export default function Home() {
       np = [...prompts, { id: uid(), name, text }];
     }
     setPrompts(np);
-    persist(repos, sites, np, links);
+    persist(repos, sites, np, dbs, links);
     setPromptModal(false);
   }
 
@@ -287,7 +306,7 @@ export default function Home() {
       const nl = links.filter((l) => l !== existing);
       setLinks(nl);
       setLinkingMode(null);
-      persist(repos, sites, prompts, nl);
+      persist(repos, sites, prompts, dbs, nl);
       return;
     }
     if (linkingMode && linkingMode.type !== type) {
@@ -297,7 +316,7 @@ export default function Home() {
       const nl = [...links.filter((l) => l.repoId !== link.repoId && l.siteId !== link.siteId), link as Link];
       setLinks(nl);
       setLinkingMode(null);
-      persist(repos, sites, prompts, nl);
+      persist(repos, sites, prompts, dbs, nl);
     } else {
       setLinkingMode({ type, id });
     }
@@ -362,7 +381,7 @@ export default function Home() {
     const val = tokenInput.trim();
     if (!val || val.startsWith("••")) { setTokenModal(false); return; }
     setGhToken(val);
-    persist(repos, sites, prompts, links, val);
+    persist(repos, sites, prompts, dbs, links, val);
     setTokenModal(false);
     refreshAllStatuses(val);
   }
@@ -370,18 +389,18 @@ export default function Home() {
   function disconnectGitHub() {
     setGhToken("");
     setActionStatuses({});
-    persist(repos, sites, prompts, links, "");
+    persist(repos, sites, prompts, dbs, links, "");
     setTokenModal(false);
   }
 
   function toggleTheme() {
     const t = theme === "dark" ? "light" : "dark";
     setTheme(t);
-    persist(repos, sites, prompts, links, undefined, t);
+    persist(repos, sites, prompts, dbs, links, undefined, t);
   }
 
   function exportData() {
-    const data = { repos, sites, prompts, links, exportedAt: new Date().toISOString() };
+    const data = { repos, sites, prompts, dbs, links, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -400,9 +419,10 @@ export default function Home() {
         const nr = data.repos || repos;
         const ns = data.sites || sites;
         const np = data.prompts || prompts;
+        const nd = data.dbs || dbs;
         const nl = data.links || links;
-        setRepos(nr); setSites(ns); setPrompts(np); setLinks(nl);
-        persist(nr, ns, np, nl);
+        setRepos(nr); setSites(ns); setPrompts(np); setDbs(nd); setLinks(nl);
+        persist(nr, ns, np, nd, nl);
         refreshAllStatuses();
       } catch { alert("Invalid backup file."); }
     };
@@ -440,7 +460,7 @@ export default function Home() {
       <div className="topbar">
         <div className="logo">devtools</div>
         <div className="sep" />
-        <div className="tagline">repos · sites · prompts</div>
+        <div className="tagline">repos · sites · databases · prompts</div>
         <div className="topbar-right">
           <span className={`gh-status ${ghToken ? "connected" : ""}`}>
             {ghToken ? "connected" : ""}
@@ -531,6 +551,33 @@ export default function Home() {
             })}
           </div>
           <AddBar placeholder="Paste site URL and press Enter" onSubmit={addSite} />
+        </div>
+
+        {/* Databases */}
+        <div className="panel">
+          <div className="panel-header">
+            <span className="panel-title">Databases</span>
+            <span className="panel-count">{dbs.length}</span>
+          </div>
+          <div className="panel-body">
+            {!dbs.length ? (
+              <div className="empty">Paste a database URL below<br />to get started</div>
+            ) : dbs.map((d) => (
+              <a key={d.id} href={d.url} target="_blank" rel="noopener noreferrer" className="item"
+                onClick={(e) => { e.preventDefault(); window.open(d.url, "_blank"); }}>
+                <FaviconImg domain={d.domain} type="site" name={d.name} />
+                <div className="item-info">
+                  <div className="item-name">{d.name}</div>
+                  <div className="item-url">{d.domain}</div>
+                </div>
+                <div className="item-actions">
+                  <button className="item-btn" title="Remove"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeDb(d.id); }}>✕</button>
+                </div>
+              </a>
+            ))}
+          </div>
+          <AddBar placeholder="Paste database URL and press Enter" onSubmit={addDb} />
         </div>
 
         {/* Prompts */}
