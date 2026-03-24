@@ -69,8 +69,8 @@ export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
-  const [linkingMode, setLinkingMode] = useState<{ type: "repo" | "site"; id: string } | null>(null);
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [linkingMode, setLinkingMode] = useState<{ type: "repo" | "site" | "db"; id: string } | null>(null);
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
 
   const [promptModal, setPromptModal] = useState(false);
   const [tokenModal, setTokenModal] = useState(false);
@@ -144,6 +144,26 @@ export default function Home() {
     }
   }
 
+  const linkKeyMap = { repo: "repoId", site: "siteId", db: "dbId" } as const;
+
+  function getLinkedIds(type: "repo" | "site" | "db", id: string) {
+    const key = linkKeyMap[type];
+    const result: string[] = [];
+    for (const l of links) {
+      if (l[key] !== id) continue;
+      if (l.repoId && l.repoId !== id) result.push(l.repoId);
+      if (l.siteId && l.siteId !== id) result.push(l.siteId);
+      if (l.dbId && l.dbId !== id) result.push(l.dbId);
+    }
+    return result;
+  }
+
+  function isLinked(type: "repo" | "site" | "db", id: string) {
+    const key = linkKeyMap[type];
+    return links.some((l) => l[key] === id);
+  }
+
+  // Keep backwards-compat helpers used in bump functions
   function getLinkedSite(repoId: string) {
     return links.find((l) => l.repoId === repoId)?.siteId ?? null;
   }
@@ -254,8 +274,10 @@ export default function Home() {
 
   function removeDb(id: string) {
     const nd = dbs.filter((d) => d.id !== id);
+    const nl = links.filter((l) => l.dbId !== id);
     setDbs(nd);
-    persist(repos, sites, prompts, nd, links);
+    setLinks(nl);
+    persist(repos, sites, prompts, nd, nl);
   }
 
   function openNewPrompt() {
@@ -299,31 +321,37 @@ export default function Home() {
     setTimeout(() => setCopiedId(null), 1200);
   }
 
-  function startLink(type: "repo" | "site", id: string) {
-    const key = (type + "Id") as "repoId" | "siteId";
-    const existing = links.find((l) => l[key] === id);
-    if (existing) {
-      const nl = links.filter((l) => l !== existing);
+  function startLink(type: "repo" | "site" | "db", id: string) {
+    const key = linkKeyMap[type];
+    // If already linked, clicking unlinks all connections for this item
+    if (isLinked(type, id) && !linkingMode) {
+      const nl = links.filter((l) => l[key] !== id);
       setLinks(nl);
-      setLinkingMode(null);
       persist(repos, sites, prompts, dbs, nl);
       return;
     }
+    // If we're in linking mode and clicking a different type, create the link
     if (linkingMode && linkingMode.type !== type) {
-      const link = {} as any;
-      link[linkingMode.type + "Id"] = linkingMode.id;
-      link[type + "Id"] = id;
-      const nl = [...links.filter((l) => l.repoId !== link.repoId && l.siteId !== link.siteId), link as Link];
+      const link: Link = {};
+      link[linkKeyMap[linkingMode.type]] = linkingMode.id;
+      link[key] = id;
+      // Remove any existing link between these same two slots
+      const k1 = linkKeyMap[linkingMode.type];
+      const k2 = key;
+      const nl = [...links.filter((l) => !(l[k1] === linkingMode.id && l[k2] === id)), link];
       setLinks(nl);
       setLinkingMode(null);
       persist(repos, sites, prompts, dbs, nl);
+    } else if (linkingMode && linkingMode.type === type && linkingMode.id === id) {
+      // Cancel linking mode by clicking the same item
+      setLinkingMode(null);
     } else {
       setLinkingMode({ type, id });
     }
   }
 
-  function highlightLinked(type: "repo" | "site", id: string) {
-    setHighlightedId(type === "repo" ? getLinkedSite(id) : getLinkedRepo(id));
+  function highlightLinked(type: "repo" | "site" | "db", id: string) {
+    setHighlightedIds(getLinkedIds(type, id));
   }
 
   async function fetchActionStatus(repo: Repo, token: string) {
@@ -488,23 +516,23 @@ export default function Home() {
               <div className="empty">Paste a repo URL below<br />to get started</div>
             ) : repos.map((r) => {
               const st = actionStatuses[r.id];
-              const linked = getLinkedSite(r.id);
-              const isLinking = linkingMode?.type === "site";
-              const linkLabel = linked ? "⇄" : isLinking ? "← link" : "⇄";
+              const hasLinks = isLinked("repo", r.id);
+              const canLink = linkingMode && linkingMode.type !== "repo";
+              const linkLabel = hasLinks ? "⇄" : canLink ? "← link" : "⇄";
               return (
                 <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer"
-                  className={`item ${highlightedId === r.id ? "linked-highlight" : ""}`}
+                  className={`item ${highlightedIds.includes(r.id) ? "linked-highlight" : ""}`}
                   onClick={(e) => { e.preventDefault(); bumpRepo(r.id); window.open(r.url, "_blank"); }}
                   onMouseEnter={() => highlightLinked("repo", r.id)}
-                  onMouseLeave={() => setHighlightedId(null)}>
+                  onMouseLeave={() => setHighlightedIds([])}>
                   <FaviconImg domain={r.domain} type="repo" name={r.name} />
                   <div className="item-info">
-                    <div className="item-name">{r.name}{linked && <span className="link-indicator"> ⇄</span>}</div>
+                    <div className="item-name">{r.name}{hasLinks && <span className="link-indicator"> ⇄</span>}</div>
                     <div className="item-url">{r.domain}</div>
                   </div>
                   {st && <div className={`status-dot ${st.status}`} title={st.label} />}
                   <div className="item-actions">
-                    <button className="item-btn" title={linked ? "Unlink" : "Link to site"}
+                    <button className="item-btn" title={hasLinks ? "Unlink" : "Link"}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); startLink("repo", r.id); }}>{linkLabel}</button>
                     <button className="item-btn" title="Remove"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeRepo(r.id); }}>✕</button>
@@ -526,22 +554,22 @@ export default function Home() {
             {!sites.length ? (
               <div className="empty">Paste a site URL below<br />to get started</div>
             ) : sites.map((s) => {
-              const linked = getLinkedRepo(s.id);
-              const isLinking = linkingMode?.type === "repo";
-              const linkLabel = linked ? "⇄" : isLinking ? "← link" : "⇄";
+              const hasLinks = isLinked("site", s.id);
+              const canLink = linkingMode && linkingMode.type !== "site";
+              const linkLabel = hasLinks ? "⇄" : canLink ? "← link" : "⇄";
               return (
                 <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer"
-                  className={`item ${highlightedId === s.id ? "linked-highlight" : ""}`}
+                  className={`item ${highlightedIds.includes(s.id) ? "linked-highlight" : ""}`}
                   onClick={(e) => { e.preventDefault(); bumpSite(s.id); window.open(s.url, "_blank"); }}
                   onMouseEnter={() => highlightLinked("site", s.id)}
-                  onMouseLeave={() => setHighlightedId(null)}>
+                  onMouseLeave={() => setHighlightedIds([])}>
                   <FaviconImg domain={s.domain} type="site" name={s.name} />
                   <div className="item-info">
-                    <div className="item-name">{s.name}{linked && <span className="link-indicator"> ⇄</span>}</div>
+                    <div className="item-name">{s.name}{hasLinks && <span className="link-indicator"> ⇄</span>}</div>
                     <div className="item-url">{s.domain}</div>
                   </div>
                   <div className="item-actions">
-                    <button className="item-btn" title={linked ? "Unlink" : "Link to repo"}
+                    <button className="item-btn" title={hasLinks ? "Unlink" : "Link"}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); startLink("site", s.id); }}>{linkLabel}</button>
                     <button className="item-btn" title="Remove"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeSite(s.id); }}>✕</button>
@@ -562,20 +590,30 @@ export default function Home() {
           <div className="panel-body">
             {!dbs.length ? (
               <div className="empty">Paste a database URL below<br />to get started</div>
-            ) : dbs.map((d) => (
-              <a key={d.id} href={d.url} target="_blank" rel="noopener noreferrer" className="item"
-                onClick={(e) => { e.preventDefault(); window.open(d.url, "_blank"); }}>
-                <FaviconImg domain={d.domain} type="site" name={d.name} />
-                <div className="item-info">
-                  <div className="item-name">{d.name}</div>
-                  <div className="item-url">{d.domain}</div>
-                </div>
-                <div className="item-actions">
-                  <button className="item-btn" title="Remove"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeDb(d.id); }}>✕</button>
-                </div>
-              </a>
-            ))}
+            ) : dbs.map((d) => {
+              const hasLinks = isLinked("db", d.id);
+              const canLink = linkingMode && linkingMode.type !== "db";
+              const linkLabel = hasLinks ? "⇄" : canLink ? "← link" : "⇄";
+              return (
+                <a key={d.id} href={d.url} target="_blank" rel="noopener noreferrer"
+                  className={`item ${highlightedIds.includes(d.id) ? "linked-highlight" : ""}`}
+                  onClick={(e) => { e.preventDefault(); window.open(d.url, "_blank"); }}
+                  onMouseEnter={() => highlightLinked("db", d.id)}
+                  onMouseLeave={() => setHighlightedIds([])}>
+                  <FaviconImg domain={d.domain} type="site" name={d.name} />
+                  <div className="item-info">
+                    <div className="item-name">{d.name}{hasLinks && <span className="link-indicator"> ⇄</span>}</div>
+                    <div className="item-url">{d.domain}</div>
+                  </div>
+                  <div className="item-actions">
+                    <button className="item-btn" title={hasLinks ? "Unlink" : "Link"}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); startLink("db", d.id); }}>{linkLabel}</button>
+                    <button className="item-btn" title="Remove"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeDb(d.id); }}>✕</button>
+                  </div>
+                </a>
+              );
+            })}
           </div>
           <AddBar placeholder="Paste database URL and press Enter" onSubmit={addDb} />
         </div>

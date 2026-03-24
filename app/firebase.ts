@@ -82,8 +82,9 @@ export type Db = {
 };
 
 export type Link = {
-  repoId: string;
-  siteId: string;
+  repoId?: string;
+  siteId?: string;
+  dbId?: string;
 };
 
 const defaultData: DevtoolsData = {
