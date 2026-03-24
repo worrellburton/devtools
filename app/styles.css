@@ -294,6 +294,21 @@ body::before {
   text-overflow: ellipsis;
 }
 
+.item-name { cursor: default; }
+
+.rename-input {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  width: 100%;
+  outline: none;
+}
+
 .item-url {
   font-size: 11px;
   color: var(--text-dim);

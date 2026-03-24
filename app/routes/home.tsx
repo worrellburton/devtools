@@ -81,6 +81,8 @@ export default function Home() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyCounts, setCopyCounts] = useState<Record<string, number>>({});
   const [copyEmojis, setCopyEmojis] = useState<Record<string, string>>({});
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const connectedRef = useRef(false);
   const skipNextRef = useRef(false);
@@ -278,6 +280,31 @@ export default function Home() {
     setDbs(nd);
     setLinks(nl);
     persist(repos, sites, prompts, nd, nl);
+  }
+
+  function startRename(id: string, currentName: string) {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  }
+
+  function commitRename(type: "repo" | "site" | "db") {
+    if (!renamingId) return;
+    const name = renameValue.trim();
+    if (!name) { setRenamingId(null); return; }
+    if (type === "repo") {
+      const nr = repos.map((r) => r.id === renamingId ? { ...r, name } : r);
+      setRepos(nr);
+      persist(nr, sites, prompts, dbs, links);
+    } else if (type === "site") {
+      const ns = sites.map((s) => s.id === renamingId ? { ...s, name } : s);
+      setSites(ns);
+      persist(repos, ns, prompts, dbs, links);
+    } else {
+      const nd = dbs.map((d) => d.id === renamingId ? { ...d, name } : d);
+      setDbs(nd);
+      persist(repos, sites, prompts, nd, links);
+    }
+    setRenamingId(null);
   }
 
   function openNewPrompt() {
@@ -527,7 +554,17 @@ export default function Home() {
                   onMouseLeave={() => setHighlightedIds([])}>
                   <FaviconImg domain={r.domain} type="repo" name={r.name} />
                   <div className="item-info">
-                    <div className="item-name">{r.name}{hasLinks && <span className="link-indicator"> ⇄</span>}</div>
+                    {renamingId === r.id ? (
+                      <input className="rename-input" autoFocus value={renameValue}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitRename("repo"); if (e.key === "Escape") setRenamingId(null); }}
+                        onBlur={() => commitRename("repo")} />
+                    ) : (
+                      <div className="item-name" onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(r.id, r.name); }}>
+                        {r.name}{hasLinks && <span className="link-indicator"> ⇄</span>}
+                      </div>
+                    )}
                     <div className="item-url">{r.domain}</div>
                   </div>
                   {st && <div className={`status-dot ${st.status}`} title={st.label} />}
@@ -565,7 +602,17 @@ export default function Home() {
                   onMouseLeave={() => setHighlightedIds([])}>
                   <FaviconImg domain={s.domain} type="site" name={s.name} />
                   <div className="item-info">
-                    <div className="item-name">{s.name}{hasLinks && <span className="link-indicator"> ⇄</span>}</div>
+                    {renamingId === s.id ? (
+                      <input className="rename-input" autoFocus value={renameValue}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitRename("site"); if (e.key === "Escape") setRenamingId(null); }}
+                        onBlur={() => commitRename("site")} />
+                    ) : (
+                      <div className="item-name" onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(s.id, s.name); }}>
+                        {s.name}{hasLinks && <span className="link-indicator"> ⇄</span>}
+                      </div>
+                    )}
                     <div className="item-url">{s.domain}</div>
                   </div>
                   <div className="item-actions">
@@ -602,7 +649,17 @@ export default function Home() {
                   onMouseLeave={() => setHighlightedIds([])}>
                   <FaviconImg domain={d.domain} type="site" name={d.name} />
                   <div className="item-info">
-                    <div className="item-name">{d.name}{hasLinks && <span className="link-indicator"> ⇄</span>}</div>
+                    {renamingId === d.id ? (
+                      <input className="rename-input" autoFocus value={renameValue}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitRename("db"); if (e.key === "Escape") setRenamingId(null); }}
+                        onBlur={() => commitRename("db")} />
+                    ) : (
+                      <div className="item-name" onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(d.id, d.name); }}>
+                        {d.name}{hasLinks && <span className="link-indicator"> ⇄</span>}
+                      </div>
+                    )}
                     <div className="item-url">{d.domain}</div>
                   </div>
                   <div className="item-actions">
