@@ -51,6 +51,8 @@ function extractGhRepo(url: string) {
 
 type ActionStatus = { status: string; label: string };
 
+const COPY_EMOJIS = ["🎉","🚀","✨","🔥","⚡","💫","🌟","🎯","💡","🦄","🍀","🎸","🌈","💎","🧠","👾","🐙","🦊","🍕","🎲"];
+
 export default function Home() {
   const [locked, setLocked] = useState(true);
   const [password, setPassword] = useState("");
@@ -75,8 +77,8 @@ export default function Home() {
   const [promptText, setPromptText] = useState("");
   const [tokenInput, setTokenInput] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copyCount, setCopyCount] = useState(0);
-  const [copyEmoji, setCopyEmoji] = useState("");
+  const [copyCounts, setCopyCounts] = useState<Record<string, number>>({});
+  const [copyEmojis, setCopyEmojis] = useState<Record<string, string>>({});
 
   const connectedRef = useRef(false);
   const skipNextRef = useRef(false);
@@ -268,15 +270,13 @@ export default function Home() {
     setPromptModal(false);
   }
 
-  const copyEmojis = ["🎉","🚀","✨","🔥","⚡","💫","🌟","🎯","💡","🦄","🍀","🎸","🌈","💎","🧠","👾","🐙","🦊","🍕","🎲"];
-
   function copyPrompt(id: string) {
     const p = prompts.find((x) => x.id === id);
     if (!p) return;
     navigator.clipboard.writeText(p.text);
     setCopiedId(id);
-    setCopyCount((c) => c + 1);
-    setCopyEmoji(copyEmojis[Math.floor(Math.random() * copyEmojis.length)]);
+    setCopyCounts((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    setCopyEmojis((prev) => ({ ...prev, [id]: COPY_EMOJIS[Math.floor(Math.random() * COPY_EMOJIS.length)] }));
     setTimeout(() => setCopiedId(null), 1200);
   }
 
@@ -537,19 +537,19 @@ export default function Home() {
         <div className="panel">
           <div className="panel-header">
             <span className="panel-title">Prompts</span>
-            {copyCount > 0 && <span className="copy-counter">{copyEmoji} {copyCount} copied</span>}
             <span className="panel-count">{prompts.length}</span>
           </div>
           <div className="panel-body">
             {!prompts.length ? (
               <div className="empty">Add prompts to build<br />your quick-copy library</div>
-            ) : prompts.map((p) => (
+            ) : [...prompts].sort((a, b) => (copyCounts[b.id] || 0) - (copyCounts[a.id] || 0)).map((p) => (
               <div key={p.id} className="prompt-item" onClick={() => copyPrompt(p.id)}>
                 <div className="prompt-top">
                   <span className="prompt-name">
                     {copiedId === p.id ? <span className="copy-toast">Copied!</span> : p.name}
                   </span>
                   <div className="prompt-actions">
+                    {copyCounts[p.id] > 0 && <span className="copy-counter">{copyEmojis[p.id]} {copyCounts[p.id]}</span>}
                     <button className="item-btn" title="Edit" onClick={(e) => { e.stopPropagation(); editPrompt(p.id); }}>✎</button>
                     <button className="item-btn" title="Remove" onClick={(e) => { e.stopPropagation(); removePrompt(p.id); }}>✕</button>
                   </div>
