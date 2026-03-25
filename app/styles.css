@@ -294,7 +294,8 @@ body::before {
   text-overflow: ellipsis;
 }
 
-.item-name { cursor: default; }
+.rename-btn { opacity: 0; transition: opacity 0.15s; }
+.item:hover .rename-btn { opacity: 1; }
 
 .rename-input {
   font-size: 13px;

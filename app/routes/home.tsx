@@ -561,7 +561,7 @@ export default function Home() {
                         onKeyDown={(e) => { if (e.key === "Enter") commitRename("repo"); if (e.key === "Escape") setRenamingId(null); }}
                         onBlur={() => commitRename("repo")} />
                     ) : (
-                      <div className="item-name" onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(r.id, r.name); }}>
+                      <div className="item-name">
                         {r.name}{hasLinks && <span className="link-indicator"> ⇄</span>}
                       </div>
                     )}
@@ -569,6 +569,8 @@ export default function Home() {
                   </div>
                   {st && <div className={`status-dot ${st.status}`} title={st.label} />}
                   <div className="item-actions">
+                    <button className="item-btn rename-btn" title="Rename"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(r.id, r.name); }}>✎</button>
                     <button className="item-btn" title={hasLinks ? "Unlink" : "Link"}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); startLink("repo", r.id); }}>{linkLabel}</button>
                     <button className="item-btn" title="Remove"
@@ -609,13 +611,15 @@ export default function Home() {
                         onKeyDown={(e) => { if (e.key === "Enter") commitRename("site"); if (e.key === "Escape") setRenamingId(null); }}
                         onBlur={() => commitRename("site")} />
                     ) : (
-                      <div className="item-name" onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(s.id, s.name); }}>
+                      <div className="item-name">
                         {s.name}{hasLinks && <span className="link-indicator"> ⇄</span>}
                       </div>
                     )}
                     <div className="item-url">{s.domain}</div>
                   </div>
                   <div className="item-actions">
+                    <button className="item-btn rename-btn" title="Rename"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(s.id, s.name); }}>✎</button>
                     <button className="item-btn" title={hasLinks ? "Unlink" : "Link"}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); startLink("site", s.id); }}>{linkLabel}</button>
                     <button className="item-btn" title="Remove"
@@ -656,13 +660,15 @@ export default function Home() {
                         onKeyDown={(e) => { if (e.key === "Enter") commitRename("db"); if (e.key === "Escape") setRenamingId(null); }}
                         onBlur={() => commitRename("db")} />
                     ) : (
-                      <div className="item-name" onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(d.id, d.name); }}>
+                      <div className="item-name">
                         {d.name}{hasLinks && <span className="link-indicator"> ⇄</span>}
                       </div>
                     )}
                     <div className="item-url">{d.domain}</div>
                   </div>
                   <div className="item-actions">
+                    <button className="item-btn rename-btn" title="Rename"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(d.id, d.name); }}>✎</button>
                     <button className="item-btn" title={hasLinks ? "Unlink" : "Link"}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); startLink("db", d.id); }}>{linkLabel}</button>
                     <button className="item-btn" title="Remove"
