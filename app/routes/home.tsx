@@ -494,15 +494,18 @@ export default function Home() {
     return (
       <div className="lock-screen">
         <div className="lock-title">devtools</div>
-        <input
-          type="password"
-          className={`lock-input ${shaking ? "shake" : ""}`}
-          placeholder="Password"
-          autoFocus
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); setLockError(""); }}
-          onKeyDown={handleLockKeyDown}
-        />
+        <div className="lock-form">
+          <input
+            type="password"
+            className={`lock-input ${shaking ? "shake" : ""}`}
+            placeholder="Password"
+            autoFocus
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setLockError(""); }}
+            onKeyDown={handleLockKeyDown}
+          />
+          <button className="lock-go" onClick={handleUnlock}>Go</button>
+        </div>
         <div className="lock-error">{lockError}</div>
       </div>
     );
